@@ -95,11 +95,11 @@ database:
 
 textProcessor:
   # local, remoteSingle, queue 
-  mode: local
+  mode: queue
   # endpoint of text processor resource, required for mode "single"
   textProcessorResource: http://localhost:8082/api
   # SQS, ActiveMQ
-  mom: ActiveMQ
+  mom: SQS
   # only for ActiveMQ
   activeMQurl: tcp://localhost:61616
   # request queue, required for mode "queue"
