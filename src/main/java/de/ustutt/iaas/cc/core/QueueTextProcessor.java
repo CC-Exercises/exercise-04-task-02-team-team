@@ -2,9 +2,14 @@ package de.ustutt.iaas.cc.core;
 
 import java.util.Enumeration;
 import java.util.Hashtable;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import javax.jms.JMSException;
 import javax.jms.Message;
+import javax.jms.MessageListener;
 import javax.jms.Queue;
 import javax.jms.QueueConnection;
 import javax.jms.QueueConnectionFactory;
@@ -95,6 +100,8 @@ public class QueueTextProcessor implements ITextProcessor {
 		}
 	}
 
+	private ConcurrentMap<String, CompletableFuture<String>> work = new ConcurrentHashMap<>();
+	
 	@Override
 	public String process(String text) {
 		// TODO send message to request queue, receive response from response
@@ -112,30 +119,68 @@ public class QueueTextProcessor implements ITextProcessor {
 		// Or add a message listener instead:
 		// receiver.setMessageListener(new MyMessageLister());
 
+//		try {
+//			TextMessage msg = session.createTextMessage();
+//			msg.setText("test message");
+//			msg.setStringProperty("type", "add");
+//			msg.setStringProperty("value", "x");
+//			sender.send(msg);
+//			Message receivedMsg = receiver.receive(5000);
+//			if (receivedMsg != null) {
+//				System.out.println(((TextMessage) receivedMsg).getText());
+//				@SuppressWarnings("unchecked")
+//				Enumeration<String> propNames = msg.getPropertyNames(); 
+//				while (propNames.hasMoreElements()) {
+//					String pn = propNames.nextElement();
+//					System.out.println(receivedMsg.getObjectProperty(pn));
+//				}
+//			} else {
+//				System.err.println("TIMEOUT: No message received");
+//			}
+//		} catch (JMSException e) {
+//			e.printStackTrace();
+//		}
+
+		String id = UUID.randomUUID().toString();
+		
+		CompletableFuture<String> cf = new CompletableFuture<String>();
+		
+		work.put(id, cf);
+		
+		Message msg;
 		try {
-			TextMessage msg = session.createTextMessage();
-			msg.setText("test message");
-			msg.setStringProperty("type", "add");
-			msg.setStringProperty("value", "x");
-			sender.send(msg);
-			Message receivedMsg = receiver.receive(5000);
-			if (receivedMsg != null) {
-				System.out.println(((TextMessage) receivedMsg).getText());
-				@SuppressWarnings("unchecked")
-				Enumeration<String> propNames = msg.getPropertyNames(); 
-				while (propNames.hasMoreElements()) {
-					String pn = propNames.nextElement();
-					System.out.println(receivedMsg.getObjectProperty(pn));
-				}
-			} else {
-				System.err.println("TIMEOUT: No message received");
-			}
+			msg = session.createTextMessage();
+			msg.setStringProperty("id", id);
+			
+			receiver.setMessageListener(new FutureMessageListener());
+			
 		} catch (JMSException e) {
+			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-
+		
 		
 		return text;
+	}
+	
+	class FutureMessageListener implements MessageListener {
+
+		@Override
+		public void onMessage(Message message) {
+			try {
+				System.out.println(((TextMessage) message).getText());
+				@SuppressWarnings("unchecked")
+				Enumeration<String> propNames = message.getPropertyNames(); 
+				while (propNames.hasMoreElements()) {
+					String pn = propNames.nextElement();
+					System.out.println(message.getObjectProperty(pn));
+				}
+			} catch (JMSException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
 	}
 
 }
